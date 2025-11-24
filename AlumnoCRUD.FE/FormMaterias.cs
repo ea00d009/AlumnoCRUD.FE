@@ -1,5 +1,6 @@
 ﻿using AlumnoCRUD.FE.Models;
 using AlumnoCRUD.FE.Services;
+using AlumnoCRUD.FE.Helpers;
 using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,20 +11,11 @@ namespace AlumnoCRUD.FE
     {
         private readonly MateriaService _service;
 
-        public FormMaterias()
+        public FormMaterias(MateriaService service)
         {
             InitializeComponent();
 
-            // 1. Configurar conexión (Igual que en Form1)
-            var handler = new System.Net.Http.HttpClientHandler();
-            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-
-            var httpClient = new System.Net.Http.HttpClient(handler)
-            {
-                BaseAddress = new Uri("http://localhost:5261/") // Tu puerto correcto
-            };
-
-            _service = new MateriaService(httpClient);
+            _service = service;
 
             // Conectar evento Load
             this.Load += FormMaterias_Load;
@@ -62,18 +54,9 @@ namespace AlumnoCRUD.FE
         // --------------------------------------------------------
         private async void btnAgregar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.Text) || string.IsNullOrWhiteSpace(txtCreditos.Text))
-            {
-                MessageBox.Show("Complete nombre y créditos");
-                return;
-            }
+            if (!ValidationHelper.AreFieldsNotEmpty(txtNombre, txtCreditos)) return;
 
-            // Intentar convertir créditos a número
-            if (!int.TryParse(txtCreditos.Text, out int creditos))
-            {
-                MessageBox.Show("Los créditos deben ser un número entero.");
-                return;
-            }
+            if (!ValidationHelper.IsValidNumber(txtCreditos.Text, out int creditos, "Créditos")) return;
 
             var nueva = new Materia
             {

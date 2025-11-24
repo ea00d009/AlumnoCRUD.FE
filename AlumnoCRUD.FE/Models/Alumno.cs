@@ -11,7 +11,7 @@ namespace AlumnoCRUD.FE.Models
         public int Id { get; set; }
         public string Nombre { get; set; }
         public string Apellido { get; set; }
-        public string legajo { get; set; }
+        public string Legajo { get; set; }
         public DateTime FechaNacimiento { get; set; }
     }
 }

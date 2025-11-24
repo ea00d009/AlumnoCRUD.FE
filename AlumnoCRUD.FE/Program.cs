@@ -1,4 +1,5 @@
 ﻿using AlumnoCRUD.FE;
+using AlumnoCRUD.FE.Services;
 using System;
 using System.Windows.Forms;
 
@@ -18,9 +19,14 @@ namespace SistemaAlumnos.FE
             // 2. Configuración de renderizado de texto
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // 3. Arrancamos el Formulario
-            // Asegúrate de que "Form1" es el nombre de tu ventana principal
-            Application.Run(new Form1());
+            // 3. Composición de Servicios (Dependency Injection Manual)
+            var httpClient = ApiClientFactory.CreateClient();
+            var alumnoService = new AlumnoService(httpClient);
+            var materiaService = new MateriaService(httpClient);
+            var inscripcionService = new InscripcionService(httpClient);
+
+            // 4. Arrancamos el Formulario inyectando dependencias
+            Application.Run(new Form1(alumnoService, materiaService, inscripcionService));
         }
     }
 }

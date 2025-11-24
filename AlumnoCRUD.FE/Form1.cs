@@ -6,36 +6,17 @@ using System.Drawing; // A veces necesario para UI
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using AlumnoCRUD.FE.Helpers; // Importar Helper
+
 namespace AlumnoCRUD.FE
 {
     public partial class Form1 : Form
     {
         private readonly AlumnoService _service;
+        private readonly MateriaService _materiaService;
+        private readonly InscripcionService _inscripcionService;
         private int _idSeleccionado = 0;
 
-        public Form1()
-        {
-            InitializeComponent();
-
-            // ---------------------------------------------------------
-            // 1. CONFIGURACIÓN DE CONEXIÓN
-            // ---------------------------------------------------------
-            var handler = new System.Net.Http.HttpClientHandler();
-            // Ignorar errores de certificado SSL en desarrollo
-            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-
-            var httpClient = new System.Net.Http.HttpClient(handler)
-            {
-                // TU URL CONFIRMADA (NO LE QUITES LA BARRA AL FINAL)
-                BaseAddress = new Uri("http://localhost:5261/")
-            };
-
-            _service = new AlumnoService(httpClient);
-        }
-
-        // Evento que se ejecuta al abrir la ventana
-        private async void Form1_Load(object sender, EventArgs e)
-        {
             ConfigurarColumnasTabla();
             await CargarAlumnosAsync();
         }
@@ -56,8 +37,8 @@ namespace AlumnoCRUD.FE
             dgvAlumnos.Columns.Add(new DataGridViewTextBoxColumn { Name = "Nombre", DataPropertyName = "Nombre", HeaderText = "Nombre" });
             dgvAlumnos.Columns.Add(new DataGridViewTextBoxColumn { Name = "Apellido", DataPropertyName = "Apellido", HeaderText = "Apellido" });
 
-            // OJO: Aquí uso "legajo" (minúscula) en DataPropertyName porque así estaba en tu foto de la clase Alumno
-            dgvAlumnos.Columns.Add(new DataGridViewTextBoxColumn { Name = "legajo", DataPropertyName = "legajo", HeaderText = "N° Legajo" });
+            // OJO: Ahora usamos "Legajo" (PascalCase)
+            dgvAlumnos.Columns.Add(new DataGridViewTextBoxColumn { Name = "Legajo", DataPropertyName = "Legajo", HeaderText = "N° Legajo" });
 
             // Columna Fecha con formato
             var colFecha = new DataGridViewTextBoxColumn { Name = "FechaNacimiento", DataPropertyName = "FechaNacimiento", HeaderText = "Fecha Nac." };
@@ -104,7 +85,7 @@ namespace AlumnoCRUD.FE
             {
                 Nombre = txtNombre.Text,
                 Apellido = txtApellido.Text,
-                legajo = txtLegajo.Text, // "legajo" minúscula en tu modelo
+                Legajo = txtLegajo.Text, // "Legajo" PascalCase en tu modelo
                 FechaNacimiento = dtpFechaNacimiento.Value
             };
 
@@ -136,7 +117,7 @@ namespace AlumnoCRUD.FE
                 Id = _idSeleccionado,
                 Nombre = txtNombre.Text,
                 Apellido = txtApellido.Text,
-                legajo = txtLegajo.Text,
+                Legajo = txtLegajo.Text,
                 FechaNacimiento = dtpFechaNacimiento.Value
             };
 
@@ -191,7 +172,7 @@ namespace AlumnoCRUD.FE
                 _idSeleccionado = Convert.ToInt32(row.Cells["Id"].Value);
                 txtNombre.Text = row.Cells["Nombre"].Value?.ToString();
                 txtApellido.Text = row.Cells["Apellido"].Value?.ToString();
-                txtLegajo.Text = row.Cells["legajo"].Value?.ToString(); // "legajo" minúscula
+                txtLegajo.Text = row.Cells["Legajo"].Value?.ToString(); // "Legajo" PascalCase
                 dtpFechaNacimiento.Value = Convert.ToDateTime(row.Cells["FechaNacimiento"].Value);
 
                 // Control de botones
@@ -207,28 +188,18 @@ namespace AlumnoCRUD.FE
 
         private bool ValidarCampos()
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.Text) ||
-                string.IsNullOrWhiteSpace(txtApellido.Text) ||
-                string.IsNullOrWhiteSpace(txtLegajo.Text))
-            {
-                MessageBox.Show("Nombre, Apellido y Legajo son obligatorios");
+            // Usamos el Helper para validar vacíos
+            if (!ValidationHelper.AreFieldsNotEmpty(txtNombre, txtApellido, txtLegajo))
                 return false;
-            }
 
-            if (!EsMayorDe16(dtpFechaNacimiento.Value))
-            {
-                MessageBox.Show("El alumno debe ser mayor de 16 años");
+            // Usamos el Helper para validar edad
+            if (!ValidationHelper.IsOlderThan(dtpFechaNacimiento.Value, 16))
                 return false;
-            }
+
             return true;
         }
 
-        private bool EsMayorDe16(DateTime fechaNacimiento)
-        {
-            var edad = DateTime.Today.Year - fechaNacimiento.Year;
-            if (fechaNacimiento.Date > DateTime.Today.AddYears(-edad)) edad--;
-            return edad >= 16;
-        }
+
 
         private void LimpiarCampos()
         {
@@ -248,9 +219,18 @@ namespace AlumnoCRUD.FE
 
         private void btnIrAMaterias_Click(object sender, EventArgs e)
         {
-            // Esto abre la ventana de materias
-            FormMaterias frm = new FormMaterias();
-            frm.ShowDialog(); // ShowDialog bloquea la ventana anterior hasta que cierres esta
+            // Lógica para no abrir múltiples ventanas iguales
+            foreach (Form openForm in Application.OpenForms)
+            {
+                if (openForm is FormMaterias)
+                {
+                    openForm.BringToFront();
+                    return;
+                }
+            }
+
+            FormMaterias frm = new FormMaterias(_materiaService);
+            frm.Show(); // Show() NO bloquea
         }
 
         private void btnVerInscripciones_Click(object sender, EventArgs e)
@@ -264,8 +244,10 @@ namespace AlumnoCRUD.FE
             // Obtenemos el nombre para ponerlo bonito en el título
             string nombreCompleto = txtNombre.Text + " " + txtApellido.Text;
 
-            
-            FormInscripciones frm = new FormInscripciones(_idSeleccionado, nombreCompleto);
+            // Para inscripciones sí usamos ShowDialog porque depende estrictamente del alumno seleccionado
+            // y queremos que al cerrar se "termine" esa acción. Pero es una decisión de diseño.
+            // Lo dejaremos modal (bloqueante) para evitar confusiones de editar otro alumno mientras inscribes.
+            FormInscripciones frm = new FormInscripciones(_idSeleccionado, nombreCompleto, _inscripcionService, _materiaService);
             frm.ShowDialog();
         }
     }

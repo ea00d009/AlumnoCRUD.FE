@@ -15,23 +15,15 @@ namespace AlumnoCRUD.FE
         private int _alumnoId; // Guardamos el ID del alumno que estamos editando
 
         // CONSTRUCTOR ESPECIAL: Recibe el ID y Nombre del Alumno desde el Form1
-        public FormInscripciones(int alumnoId, string nombreCompleto)
+        public FormInscripciones(int alumnoId, string nombreCompleto, InscripcionService inscripcionService, MateriaService materiaService)
         {
             InitializeComponent();
 
             _alumnoId = alumnoId;
             lblAlumno.Text = "Inscripciones de: " + nombreCompleto;
 
-            // Configurar conexión
-            var handler = new System.Net.Http.HttpClientHandler();
-            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-            var httpClient = new System.Net.Http.HttpClient(handler)
-            {
-                BaseAddress = new Uri("http://localhost:5261/")
-            };
-
-            _inscripcionService = new InscripcionService(httpClient);
-            _materiaService = new MateriaService(httpClient);
+            _inscripcionService = inscripcionService;
+            _materiaService = materiaService;
 
             this.Load += FormInscripciones_Load;
         }
